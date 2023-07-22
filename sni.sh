@@ -15,20 +15,19 @@ domain_list=($(echo "$all_domian" | sed 's/\(\S\+\)/"\1"/g'))
 # Function to check TLS version for a domain
 check_tls_version() {
     local domain="$1"
-    local tls_output
     local tls_version
 
-    tls_output=$(openssl s_client -connect "$domain":443 -tls1_3 2>&1)
-    tls_version=$(echo "$tls_output" | grep "Protocol" | awk '{print $2}')
+    # Perform the TLS handshake and capture the verbose output in a variable
+    tls_output=$(curl -sIv --connect-timeout 5 "https://$domain" 2>&1)
 
-    echo "TLS check for $domain:"
-    echo "$tls_output"
+    # Extract the TLS version from the verbose output
+    tls_version=$(echo "$tls_output" | grep -i "TLSv1\.[12]\|TLSv1\.3")
 
-    if [[ "$tls_version" == "TLSv1.3" ]]; then
-        echo "TLS version 1.3 is supported for $domain."
-        echo "$domain" >> $usl.txt
+    # Check if TLS version was found and print the result
+    if [[ -n "$tls_version" ]]; then
+        echo "TLS version supported for $domain: $tls_version"
     else
-        echo "TLS version 1.3 is not supported for $domain."
+        echo "TLS version not supported for $domain"
     fi
 
     echo
@@ -38,4 +37,3 @@ check_tls_version() {
 for domain in "${domain_list[@]}"; do
     check_tls_version "$domain"
 done
-echo $ip
